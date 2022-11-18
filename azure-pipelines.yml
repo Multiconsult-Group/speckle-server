@@ -13,7 +13,7 @@ variables:
   dockerRegistryServiceConnection: '302d51b5-a5a8-4bdc-9182-4acca4264969'
   imageRepository: 'multiconsultgroupspeckleserver'
   containerRegistry: 'acrmulticonsultdev.azurecr.io'
-  dockerfilePath: '$(Build.SourcesDirectory)/packages/server/Dockerfile'
+  dockerfilePath: '$(Build.SourcesDirectory)/packages/speckle-frontend/Dockerfile'
   tag: '$(Build.BuildId)'
 
   # Agent VM image name
