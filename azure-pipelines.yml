@@ -14,7 +14,7 @@ variables:
   imageRepository: 'speckle/speckle-frontend'
   containerRegistry: 'acrmulticonsultdev.azurecr.io'
   dockerfilePath: '$(Build.SourcesDirectory)/packages/speckle-frontend/Dockerfile'
-  tag: '$(Build.BuildId)'
+  buildIdTag: '$(Build.BuildId)'
 
   # Agent VM image name
   vmImageName: 'ubuntu-latest'
