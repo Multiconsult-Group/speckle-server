@@ -36,4 +36,14 @@ stages:
         dockerfile: $(dockerfilePath)
         containerRegistry: $(dockerRegistryServiceConnection)
         tags: |
-          $(tag)
+          $(buildIdTag)
+          latest
+    - task: Docker@2
+      displayName: Push docker image to Azure Container Registry
+      inputs:
+        command: push
+        repository: $(imageRepository)
+        containerRegistry: $(dockerRegistryServiceConnection)
+        tags: |
+          $(buildIdTag)
+          latest
