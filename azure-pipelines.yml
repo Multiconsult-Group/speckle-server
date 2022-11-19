@@ -40,8 +40,6 @@ stages:
               tags: |
                 $(buildIdTag)
                 latest
-              arguments: '
-                --build-arg SPECKLE_SERVER_VERSION=dev
           - task: Docker@2
             displayName: Push docker image to Azure Container Registry
             inputs:
