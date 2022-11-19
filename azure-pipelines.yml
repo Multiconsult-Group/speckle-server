@@ -13,8 +13,8 @@ variables:
   dockerRegistryServiceConnection: '302d51b5-a5a8-4bdc-9182-4acca4264969'
   imageRepository: 'speckle/speckle-frontend'
   containerRegistry: 'acrmulticonsultdev.azurecr.io'
-  dockerfilePath: '$(build-stage.SourcesDirectory)/packages/speckle-frontend/Dockerfile'
-  buildIdTag: '$(build-stage.BuildId)'
+  dockerfilePath: '$(Build.SourcesDirectory)/packages/speckle-frontend/Dockerfile'
+  buildIdTag: '$(Build.BuildId)'
 
   # Agent VM image name
   vmImageName: 'ubuntu-latest'
@@ -25,8 +25,8 @@ stages:
     jobs:
       - deployment:
         environment: speckle-dev
-      - job: build-stage
-        displayName: build-stage
+      - job: Build
+        displayName: Build
         pool:
           vmImage: $(vmImageName)
         steps:
