@@ -11,7 +11,7 @@ resources:
 variables:
   # Container registry service connection established during pipeline creation
   dockerRegistryServiceConnection: '302d51b5-a5a8-4bdc-9182-4acca4264969'
-  imageRepository: 'speckle-server/speckle-frontend'
+  imageRepository: 'speckle/speckle-frontend'
   containerRegistry: 'acrmulticonsultdev.azurecr.io'
   dockerfilePath: '$(Build.SourcesDirectory)/packages/speckle-frontend/Dockerfile'
   buildIdTag: '$(Build.BuildId)'
