@@ -4,6 +4,9 @@ trigger:
 resources:
 - repo: self
 
+pool:
+  vmImage: ubuntu-latest
+
 variables:
   azureContainerRegistry: acrmulticonsultdev.azurecr.io
   azureSubscriptionEndpoint: acr_dev
@@ -22,3 +25,14 @@ steps:
     dockerComposeFileArgs: |
       firstArg=$(firstArg)
       secondArg=$(secondArg)
+- task: DockerCompose@0
+  displayName: Push services
+  inputs:
+    action: Push services
+    azureSubscriptionEndpoint: $(azureSubscriptionEndpoint)
+    azureContainerRegistry: $(azureContainerRegistry)
+    dockerComposeFile: docker-compose.yml
+    projectName: $(Build.Repository.Name)
+    qualifyImageNames: true
+    additionalImageTags: $(Build.BuildId)
+    includeLatestTag: true
