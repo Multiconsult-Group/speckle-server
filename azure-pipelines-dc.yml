@@ -4,14 +4,24 @@ trigger:
 resources:
 - repo: self
 
+# Agent should be non micorosft
+vmImageName: ubuntu-latest
+
 variables:
   azureContainerRegistry: acrmulticonsultdev.azurecr.io
   azureSubscriptionEndpoint: acr_dev
 
 steps:
 - task: DockerCompose@0
-  displayName: Container registry login
+  displayName: Build services
   inputs:
-    containerregistrytype: Azure Container Registry
+    action: Build services
     azureSubscriptionEndpoint: $(azureSubscriptionEndpoint)
     azureContainerRegistry: $(azureContainerRegistry)
+    dockerComposeFile: docker-compose.yml
+    projectName: $(Build.Repository.Name)
+    qualifyImageNames: true
+    additionalImageTags: $(Build.BuildId)
+    dockerComposeFileArgs: |
+      firstArg=$(firstArg)
+      secondArg=$(secondArg)
