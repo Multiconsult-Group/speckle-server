@@ -1,7 +1,7 @@
 # NOTE: Docker context should be set to git root directory, to include the viewer
 
 # build stage
-FROM node:16.18.0-bullseye-slim as build
+FROM node:16.18.0-bullseye-slim as build-stage
 ARG SPECKLE_SERVER_VERSION=custom
  
 
@@ -25,7 +25,7 @@ COPY packages/frontend ./packages/frontend/
 COPY packages/shared ./packages/shared/
 
 # This way the foreach only builds the frontend and its deps
-RUN yarn workspaces foreach run build
+RUN yarn workspaces foreach run build-stage
 
 # production stage
 
