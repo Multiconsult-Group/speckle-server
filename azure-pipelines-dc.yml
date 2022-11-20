@@ -21,7 +21,7 @@ steps:
     action: Build services
     azureSubscriptionEndpoint: $(azureSubscriptionEndpoint)
     azureContainerRegistry: $(azureContainerRegistry)
-    dockerComposeFile: docker-compose-speckle.yml
+    dockerComposeFile: docker-compose.yml
     projectName: $(Build.Repository.Name)
     qualifyImageNames: true
     additionalImageTags: $(Build.BuildId)
@@ -34,7 +34,7 @@ steps:
     action: Push services
     azureSubscriptionEndpoint: $(azureSubscriptionEndpoint)
     azureContainerRegistry: $(azureContainerRegistry)
-    dockerComposeFile: docker-compose-speckle.yml
+    dockerComposeFile: docker-compose.yml
     projectName: $(Build.Repository.Name)
     qualifyImageNames: true
     additionalImageTags: $(Build.BuildId)
