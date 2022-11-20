@@ -25,7 +25,7 @@ COPY packages/frontend ./packages/frontend/
 COPY packages/shared ./packages/shared/
 
 # This way the foreach only builds the frontend and its deps
-RUN yarn workspaces foreach run build-stage
+RUN yarn workspaces foreach run build
 
 # production stage
 
