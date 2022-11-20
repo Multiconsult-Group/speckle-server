@@ -6,7 +6,7 @@ resources:
 
 variables:
   azureContainerRegistry: acrmulticonsultdev.azurecr.io
-  azureSubscriptionEndpoint: acrmulticonsultdev
+  azureSubscriptionEndpoint: images
 
 steps:
 - task: DockerCompose@0
