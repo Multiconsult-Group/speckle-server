@@ -4,17 +4,14 @@ trigger:
 resources:
 - repo: self
 
+pool:
+  vmImage: ubuntu-latest
+
 variables:
   azureContainerRegistry: acrmulticonsultdev.azurecr.io
-  azureSubscriptionEndpoint: images
+  azureSubscriptionEndpoint: acr_dev
 
 steps:
-- task: DockerCompose@0
-  displayName: Container registry login
-  inputs:
-    containerregistrytype: Azure Container Registry
-    azureSubscriptionEndpoint: $(azureSubscriptionEndpoint)
-    azureContainerRegistry: $(azureContainerRegistry)
 - task: DockerCompose@0
   displayName: Build services
   inputs:
@@ -38,3 +35,4 @@ steps:
     projectName: $(Build.Repository.Name)
     qualifyImageNames: true
     additionalImageTags: $(Build.BuildId)
+    includeLatestTag: true
