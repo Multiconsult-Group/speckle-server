@@ -4,9 +4,6 @@ trigger:
 resources:
 - repo: self
 
-# Agent should be non micorosft
-vmImageName: ubuntu-latest
-
 variables:
   azureContainerRegistry: acrmulticonsultdev.azurecr.io
   azureSubscriptionEndpoint: acr_dev
