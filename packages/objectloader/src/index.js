@@ -119,7 +119,7 @@ export default class ObjectLoader {
 
   dispose() {
     this.buffer = []
-    this.intervals.forEach((i) => clearInterval(i.interval))
+    Object.values(this.intervals).forEach((i) => clearInterval(i.interval))
   }
 
   /**
@@ -173,6 +173,7 @@ export default class ObjectLoader {
     if (Array.isArray(obj) && obj.length !== 0) {
       const arr = []
       for (const element of obj) {
+        if (!element) continue
         if (typeof element !== 'object' && !this.options.fullyTraverseArrays) return obj
 
         // Dereference element if needed

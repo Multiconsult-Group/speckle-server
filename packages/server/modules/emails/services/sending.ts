@@ -1,8 +1,5 @@
+import { logger } from '@/logging/logging'
 import { getTransporter } from '@/modules/emails/utils/transporter'
-import dbg from 'debug'
-
-const debug = dbg('speckle')
-const errorDebug = debug.extend('errors')
 
 export type SendEmailParams = {
   from?: string
@@ -24,20 +21,21 @@ export async function sendEmail({
 }: SendEmailParams): Promise<boolean> {
   const transporter = getTransporter()
   if (!transporter) {
-    errorDebug('No email transport present. Cannot send emails.')
+    logger.warn('No email transport present. Cannot send emails.')
     return false
   }
   try {
     const emailFrom = process.env.EMAIL_FROM || 'no-reply@speckle.systems'
-    return await transporter.sendMail({
+    await transporter.sendMail({
       from: from || `"Speckle" <${emailFrom}>`,
       to,
       subject,
       text,
       html
     })
+    return true
   } catch (error) {
-    errorDebug(error)
+    logger.error(error)
   }
 
   return false

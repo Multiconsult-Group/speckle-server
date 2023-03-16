@@ -3,6 +3,7 @@ import { Geometry, GeometryData } from './Geometry'
 import MeshTriangulationHelper from './MeshTriangulationHelper'
 import { getConversionFactor } from './Units'
 import { NodeData } from '../tree/WorldTree'
+import Logger from 'js-logger'
 
 export enum SpeckleType {
   View3D = 'View3D',
@@ -19,10 +20,28 @@ export enum SpeckleType {
   Circle = 'Circle',
   Arc = 'Arc',
   Ellipse = 'Ellipse',
+  RevitInstance = 'RevitInstance',
   Unknown = 'Unknown'
 }
 
+export const SpeckleTypeAllRenderables: SpeckleType[] = [
+  SpeckleType.Pointcloud,
+  SpeckleType.Brep,
+  SpeckleType.Mesh,
+  SpeckleType.Point,
+  SpeckleType.Line,
+  SpeckleType.Polyline,
+  SpeckleType.Box,
+  SpeckleType.Polycurve,
+  SpeckleType.Curve,
+  SpeckleType.Circle,
+  SpeckleType.Arc,
+  SpeckleType.Ellipse
+]
+
 export class GeometryConverter {
+  public static keepGeometryData = false
+
   public static getSpeckleType(node: NodeData): SpeckleType {
     let type = 'Base'
     if (node.raw.data)
@@ -68,11 +87,57 @@ export class GeometryConverter {
         return GeometryConverter.EllipseToGeometryData(node)
       case SpeckleType.View3D:
         return GeometryConverter.View3DToGeometryData(node)
+      case SpeckleType.RevitInstance:
+        return GeometryConverter.RevitInstanceToGeometryData(node)
       default:
         // console.warn(`Skipping geometry conversion for ${type}`)
         return null
     }
   }
+
+  public static disposeNodeGeometryData(node: NodeData): void {
+    const type = GeometryConverter.getSpeckleType(node)
+    switch (type) {
+      case SpeckleType.Pointcloud:
+        node.raw.vertices = []
+        node.raw.colors = []
+        break
+      case SpeckleType.Mesh:
+        node.raw.vertices = []
+        node.raw.faces = []
+        node.raw.colors = []
+        break
+      case SpeckleType.Point:
+        if (node.raw.value) node.raw.value = []
+        else {
+          delete node.raw.x
+          delete node.raw.y
+          delete node.raw.z
+        }
+        break
+      case SpeckleType.Line:
+        if (node.raw.start.value) node.raw.start.value = []
+        else {
+          delete node.raw.start.x
+          delete node.raw.start.y
+          delete node.raw.start.z
+        }
+        if (node.raw.end.value) node.raw.end.value = []
+        else {
+          delete node.raw.end.x
+          delete node.raw.end.y
+          delete node.raw.end.z
+        }
+        break
+      case SpeckleType.Polyline:
+        node.raw.value = []
+        break
+
+      default:
+        break
+    }
+  }
+
   static View3DToGeometryData(node: NodeData): GeometryData {
     const vOrigin = GeometryConverter.PointToVector3(node.raw.origin)
     const vTarget = GeometryConverter.PointToVector3(node.raw.target)
@@ -96,6 +161,42 @@ export class GeometryConverter {
     const matrixData: number[] = Array.isArray(node.raw.transform)
       ? node.raw.transform
       : node.raw.transform.value
+      ? node.raw.transform.value
+      : node.raw.transform.matrix
+    const matrix = new Matrix4().fromArray(matrixData).transpose()
+    /** We need to scale the transform, but not propagate the scale towards the block's children
+     *  They do the scaling on their own. That's why we multiply with the inverse scale at the end
+     *  Not 100% sure on this if the original block matrix containts it's own scale + rotation
+     */
+    const transform: Matrix4 = new Matrix4()
+      .makeScale(conversionFactor, conversionFactor, conversionFactor)
+      .multiply(matrix)
+      .multiply(
+        new Matrix4().makeScale(
+          1 / conversionFactor,
+          1 / conversionFactor,
+          1 / conversionFactor
+        )
+      )
+
+    return {
+      attributes: null,
+      bakeTransform: null,
+      transform
+    } as GeometryData
+  }
+
+  private static RevitInstanceToGeometryData(node: NodeData): GeometryData {
+    const conversionFactor = getConversionFactor(node.raw.units)
+    /**
+     * Speckle matrices are row major. Three's 'fromArray' function assumes
+     * the matrix is in column major. That's why we transpose it here.
+     */
+    const matrixData: number[] = Array.isArray(node.raw.transform)
+      ? node.raw.transform
+      : node.raw.transform.value
+      ? node.raw.transform.value
+      : node.raw.transform.matrix
     const matrix = new Matrix4().fromArray(matrixData).transpose()
     /** We need to scale the transform, but not propagate the scale towards the block's children
      *  They do the scaling on their own. That's why we multiply with the inverse scale at the end
@@ -131,13 +232,14 @@ export class GeometryConverter {
 
     if (colorsRaw && colorsRaw.length !== 0) {
       if (colorsRaw.length !== vertices.length / 3) {
-        console.warn(
+        Logger.warn(
           `Mesh (id ${node.raw.id}) colours are mismatched with vertice counts. The number of colours must equal the number of vertices.`
         )
       }
       /** We want the colors in linear space */
       colors = GeometryConverter.unpackColors(colorsRaw, true)
     }
+
     return {
       attributes: {
         POSITION: vertices,
@@ -208,7 +310,7 @@ export class GeometryConverter {
 
     if (colorsRaw && colorsRaw.length !== 0) {
       if (colorsRaw.length !== vertices.length / 3) {
-        console.warn(
+        Logger.warn(
           `Mesh (id ${node.raw.id}) colours are mismatched with vertice counts. The number of colours must equal the number of vertices.`
         )
       }
@@ -319,10 +421,10 @@ export class GeometryConverter {
   /**
    * POLYCURVE
    */
-  private static PolycurveToGeometryData(node): GeometryData {
+  private static PolycurveToGeometryData(node: NodeData): GeometryData {
     const buffers = []
-    for (let i = 0; i < node.children.length; i++) {
-      const element = node.children[i]
+    for (let i = 0; i < node.nestedNodes.length; i++) {
+      const element = node.nestedNodes[i].model
       const conv = GeometryConverter.convertNodeToGeometryData(element)
       buffers.push(conv)
     }
@@ -333,6 +435,10 @@ export class GeometryConverter {
    * CURVE
    */
   private static CurveToGeometryData(node) {
+    if (node.children.length === 0) {
+      return null
+    }
+
     const polylineGeometry = this.PolylineToGeometryData(node.children[0])
     return {
       attributes: {
@@ -405,6 +511,17 @@ export class GeometryConverter {
     v1.normalize()
     const v2 = new Vector3().crossVectors(v0, v1)
     v2.normalize()
+    /** When the arc has an angle of PI, the directions from start and end to origin
+     *  face away from each other, making the cross product return 0, and we end up
+     *  with an incorrect orthonormal basis.
+     */
+    if (v2.length() === 0) {
+      /** We compute the plane normal using the mid point instead of the start point*/
+      const vm = new Vector3().subVectors(midPoint, origin)
+      vm.normalize()
+      v2.copy(new Vector3().crossVectors(v0, vm))
+      v2.normalize()
+    }
     const v3 = new Vector3().crossVectors(v2, v0)
     v3.normalize()
     /**

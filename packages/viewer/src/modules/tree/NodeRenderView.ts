@@ -30,6 +30,8 @@ export class NodeRenderView {
   private _batchId: string
   private _batchIndexStart: number
   private _batchIndexCount: number
+  private _batchVertexStart: number
+  private _batchVertexEnd: number
 
   private readonly _renderData: NodeRenderData
   private _materialHash: number
@@ -108,6 +110,14 @@ export class NodeRenderView {
     )
   }
 
+  public get vertStart() {
+    return this._batchVertexStart
+  }
+
+  public get vertEnd() {
+    return this._batchVertexEnd
+  }
+
   public get needsSegmentConversion() {
     return (
       this._renderData.speckleType === SpeckleType.Curve ||
@@ -119,6 +129,13 @@ export class NodeRenderView {
     )
   }
 
+  public get validGeometry() {
+    return (
+      this._renderData.geometry.attributes.POSITION &&
+      this._renderData.geometry.attributes.POSITION.length > 0
+    )
+  }
+
   public constructor(data: NodeRenderData) {
     this._renderData = data
     this._geometryType = this.getGeometryType()
@@ -127,12 +144,22 @@ export class NodeRenderView {
     this._batchId
     this._batchIndexCount
     this._batchIndexStart
+    this._batchVertexStart
+    this._batchVertexEnd
   }
 
-  public setBatchData(id: string, start: number, count: number) {
+  public setBatchData(
+    id: string,
+    start: number,
+    count: number,
+    vertStart?: number,
+    vertEnd?: number
+  ) {
     this._batchId = id
     this._batchIndexStart = start
     this._batchIndexCount = count
+    if (vertStart !== undefined) this._batchVertexStart = vertStart
+    if (vertEnd !== undefined) this._batchVertexEnd = vertEnd
   }
 
   public computeAABB() {
@@ -152,6 +179,12 @@ export class NodeRenderView {
 
       default:
         return GeometryType.LINE
+    }
+  }
+
+  public disposeGeometry() {
+    for (const attr in this._renderData.geometry.attributes) {
+      this._renderData.geometry.attributes[attr] = []
     }
   }
 

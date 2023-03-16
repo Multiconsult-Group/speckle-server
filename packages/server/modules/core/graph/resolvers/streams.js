@@ -25,7 +25,12 @@ const {
 } = require(`@/modules/shared`)
 const { saveActivity } = require(`@/modules/activitystream/services`)
 const { ActionTypes } = require('@/modules/activitystream/helpers/types')
-const { respectsLimits } = require('@/modules/core/services/ratelimits')
+const {
+  RateLimitError,
+  RateLimitAction,
+  getRateLimitResult,
+  isRateLimitBreached
+} = require('@/modules/core/services/ratelimiter')
 const {
   getPendingStreamCollaborators
 } = require('@/modules/serverinvites/services/inviteRetrievalService')
@@ -44,6 +49,7 @@ const {
   getUserStreamsCount,
   getUserStreams
 } = require('@/modules/core/repositories/streams')
+const { adminOverrideEnabled } = require('@/modules/shared/helpers/envHelper')
 
 // subscription events
 const USER_STREAM_ADDED = StreamPubsubEvents.UserStreamAdded
@@ -220,8 +226,11 @@ module.exports = {
     }
   },
   LimitedUser: {
-    async streams(parent, args) {
-      return await getUserStreamsCore(true, parent, args)
+    async streams(parent, args, context) {
+      // a little escape hatch for admins to look into users streams
+
+      const isAdmin = adminOverrideEnabled() && context.role === Roles.Server.Admin
+      return await getUserStreamsCore(!isAdmin, parent, args)
     },
     async totalOwnedStreamsFavorites(parent, _args, ctx) {
       const { id: userId } = parent
@@ -230,10 +239,12 @@ module.exports = {
   },
   Mutation: {
     async streamCreate(parent, args, context) {
-      if (
-        !(await respectsLimits({ action: 'STREAM_CREATE', source: context.userId }))
-      ) {
-        throw new Error('Blocked due to rate-limiting. Try again later')
+      const rateLimitResult = await getRateLimitResult(
+        RateLimitAction.STREAM_CREATE,
+        context.userId
+      )
+      if (isRateLimitBreached(rateLimitResult)) {
+        throw new RateLimitError(rateLimitResult)
       }
 
       const id = await createStream({ ...args.stream, ownerId: context.userId })

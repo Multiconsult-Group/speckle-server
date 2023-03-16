@@ -1,12 +1,19 @@
-import { Matrix4 } from 'three'
+import { Box3, Matrix4 } from 'three'
 import { GeometryConverter, SpeckleType } from '../converter/GeometryConverter'
 import { TreeNode, WorldTree } from './WorldTree'
 import Materials from '../materials/Materials'
 import { NodeRenderData, NodeRenderView } from './NodeRenderView'
 import { Geometry } from '../converter/Geometry'
+import Logger from 'js-logger'
 
 export class RenderTree {
   private root: TreeNode
+  private _treeBounds: Box3 = new Box3()
+  private cancel = false
+
+  public get treeBounds(): Box3 {
+    return this._treeBounds
+  }
 
   public constructor(root: TreeNode) {
     this.root = root
@@ -23,10 +30,41 @@ export class RenderTree {
         }
         Geometry.transformGeometryData(rendeNode.geometry, transform)
         node.model.renderView.computeAABB()
+        this._treeBounds.union(node.model.renderView.aabb)
+
+        if (!GeometryConverter.keepGeometryData) {
+          GeometryConverter.disposeNodeGeometryData(node.model)
+        }
       }
 
       return true
     })
+  }
+
+  public buildRenderTreeAsync(priority: number): Promise<boolean> {
+    const p = WorldTree.getInstance().walkAsync(
+      (node: TreeNode): boolean => {
+        const rendeNode = this.buildRenderNode(node)
+        node.model.renderView = rendeNode ? new NodeRenderView(rendeNode) : null
+        if (node.model.renderView && node.model.renderView.hasGeometry) {
+          const transform = this.computeTransform(node)
+          if (rendeNode.geometry.bakeTransform) {
+            transform.multiply(rendeNode.geometry.bakeTransform)
+          }
+          Geometry.transformGeometryData(rendeNode.geometry, transform)
+          node.model.renderView.computeAABB()
+          this._treeBounds.union(node.model.renderView.aabb)
+
+          if (!GeometryConverter.keepGeometryData) {
+            GeometryConverter.disposeNodeGeometryData(node.model)
+          }
+        }
+        return !this.cancel
+      },
+      this.root,
+      priority
+    )
+    return p
   }
 
   private buildRenderNode(node: TreeNode): NodeRenderData {
@@ -83,6 +121,13 @@ export class RenderTree {
         const renderNode: NodeRenderData = ancestors[k].model.renderView.renderData
         if (renderNode.speckleType === SpeckleType.BlockInstance) {
           transform.premultiply(renderNode.geometry.transform)
+        } else if (renderNode.speckleType === SpeckleType.RevitInstance) {
+          /** Revit Instances *hosted* on other instances do not stack the host's transform */
+          if (k > 0) {
+            const curentAncestorId = ancestors[k].model.raw.id
+            if (ancestors[k - 1].model.raw.host === curentAncestorId) continue
+          }
+          transform.premultiply(renderNode.geometry.transform)
         }
       }
     }
@@ -113,7 +158,7 @@ export class RenderTree {
 
     return (parent ? parent : node.parent)
       .all((_node: TreeNode): boolean => {
-        return _node.model.renderView !== null && _node.model.renderView.hasGeometry
+        return _node.model.renderView && _node.model.renderView.hasGeometry
       })
       .map((val: TreeNode) => val.model.renderView)
   }
@@ -124,7 +169,7 @@ export class RenderTree {
     }
 
     return (parent ? parent : node.parent).all((_node: TreeNode): boolean => {
-      return _node.model.renderView !== null && _node.model.renderView.hasGeometry
+      return _node.model.renderView && _node.model.renderView.hasGeometry
     })
   }
 
@@ -140,7 +185,7 @@ export class RenderTree {
   public getRenderViewsForNodeId(id: string): NodeRenderView[] {
     const node = WorldTree.getInstance().findId(id)
     if (!node) {
-      console.warn(`Id ${id} does not exist`)
+      Logger.warn(`Id ${id} does not exist`)
       return null
     }
     return this.getRenderViewsForNode(node)
@@ -149,7 +194,7 @@ export class RenderTree {
   public getRenderViewForNodeId(id: string): NodeRenderView {
     const node = WorldTree.getInstance().findId(id)
     if (!node) {
-      console.warn(`Id ${id} does not exist`)
+      Logger.warn(`Id ${id} does not exist`)
       return null
     }
     return node.model.renderView
@@ -157,5 +202,11 @@ export class RenderTree {
 
   public purge() {
     this.root = null
+  }
+
+  public cancelBuild(id: string) {
+    this.cancel = true
+    WorldTree.getInstance().purge(id)
+    this.purge()
   }
 }

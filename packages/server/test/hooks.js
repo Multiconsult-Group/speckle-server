@@ -1,18 +1,20 @@
 require('../bootstrap')
+
+// Register global mocks as early as possible
+require('@/test/mocks/global')
+
 const chai = require('chai')
 const chaiHttp = require('chai-http')
 const deepEqualInAnyOrder = require('deep-equal-in-any-order')
 const knex = require(`@/db/knex`)
 const { init, startHttp, shutdown } = require(`@/app`)
 const { default: graphqlChaiPlugin } = require('@/test/plugins/graphql')
+const { logger } = require('@/logging/logging')
 
 // Register chai plugins
 chai.use(chaiHttp)
 chai.use(deepEqualInAnyOrder)
 chai.use(graphqlChaiPlugin)
-
-// Register global mocks
-require('@/test/mocks/global')
 
 const unlock = async () => {
   const exists = await knex.schema.hasTable('knex_migrations_lock')
@@ -49,8 +51,8 @@ const initializeTestServer = async (server, app) => {
 
   app.on('appStarted', () => {
     const port = server.address().port
-    serverAddress = `http://localhost:${port}`
-    wsAddress = `ws://localhost:${port}`
+    serverAddress = `http://127.0.0.1:${port}`
+    wsAddress = `ws://127.0.0.1:${port}`
   })
   while (!serverAddress) {
     await new Promise((resolve) => setTimeout(resolve, 100))
@@ -60,25 +62,31 @@ const initializeTestServer = async (server, app) => {
     serverAddress,
     wsAddress,
     sendRequest(auth, obj) {
-      return chai
-        .request(serverAddress)
-        .post('/graphql')
-        .set('Authorization', auth)
-        .send(obj)
+      return (
+        chai
+          .request(serverAddress)
+          .post('/graphql')
+          // if you set the header to null, the actual header in the req will be
+          // a string -> 'null'
+          // this is now treated as an invalid token, and gets forbidden
+          // switching to an empty string token
+          .set('Authorization', auth || '')
+          .send(obj)
+      )
     }
   }
 }
 
 exports.mochaHooks = {
   beforeAll: async () => {
-    console.log('running before all')
+    logger.info('running before all')
     await unlock()
     await knex.migrate.rollback()
     await knex.migrate.latest()
     await init()
   },
   afterAll: async () => {
-    console.log('running after all')
+    logger.info('running after all')
     await unlock()
     await shutdown()
   }

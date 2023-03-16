@@ -1,5 +1,6 @@
 /* eslint-disable camelcase */
 import {
+  Box3,
   BufferAttribute,
   BufferGeometry,
   Float32BufferAttribute,
@@ -8,13 +9,14 @@ import {
   Matrix4,
   Vector3
 } from 'three'
+import { SpeckleMeshBVH } from '../objects/SpeckleMeshBVH'
 
 export enum GeometryAttributes {
   POSITION = 'POSITION',
   COLOR = 'COLOR',
   NORMAL = 'NORMAL',
   UV = 'UV',
-  TANGENTS = 'TANGENTS',
+  TANGENT = 'TANGENT',
   INDEX = 'INDEX'
 }
 
@@ -27,11 +29,19 @@ export interface GeometryData {
 export class Geometry {
   private static readonly floatArrayBuff: Float32Array = new Float32Array(1)
 
+  public static buildBVH(
+    indices: Uint32Array | Uint16Array,
+    position: Float64Array,
+    bounds: Box3
+  ): SpeckleMeshBVH {
+    return SpeckleMeshBVH.buildBVH(indices, position, bounds)
+  }
+
   public static updateRTEGeometry(
     geometry: BufferGeometry,
-    doublePositions: Float64Array
+    doublePositions: Float64Array | Float32Array
   ) {
-    if (geometry.type === 'BufferGeometry') {
+    if (geometry.type === 'BufferGeometry' || geometry.type === 'PlaneGeometry') {
       const position_low = new Float32Array(doublePositions.length)
       /** We'll store the high component of the encoding inside three's default `position` attribute */
       const position_high = geometry.attributes.position.array as Float32Array
